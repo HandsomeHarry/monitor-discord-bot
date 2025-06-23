@@ -1,0 +1,23 @@
+{
+  "name": "discord-system-monitor-bot",
+  "version": "1.0.0",
+  "description": "Discord bot for monitoring server system status and Tailscale network",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js"
+  },
+  "keywords": ["discord", "bot", "monitoring", "system", "tailscale"],
+  "author": "harryyu",
+  "license": "MIT",
+  "dependencies": {
+    "discord.js": "^14.14.1",
+    "axios": "^1.6.2",
+    "node-os-utils": "^1.3.7",
+    "ping": "^0.4.4",
+    "dotenv": "^16.3.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  }
+}

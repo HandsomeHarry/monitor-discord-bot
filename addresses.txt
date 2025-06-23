@@ -1,0 +1,10 @@
+# Add IP addresses and domains to monitor (one per line)
+# Examples:
+# 8.8.8.8
+# google.com
+# 100.64.1.1
+# tailscale.com
+www.harryyu.dev
+ai.harryyu.dev
+wackyserver
+miniserver
