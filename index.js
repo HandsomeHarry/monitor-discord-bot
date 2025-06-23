@@ -1,4 +1,4 @@
-const { Client, GatewayIntentBits, EmbedBuilder, SlashCommandBuilder, REST, Routes } = require('discord.js');
+const { Client, GatewayIntentBits, EmbedBuilder, SlashCommandBuilder, REST, Routes, ActivityType } = require('discord.js');
 const SystemMonitor = require('./utils/systemMonitor');
 const NetworkMonitor = require('./utils/networkMonitor');
 require('dotenv/config');
@@ -43,6 +43,7 @@ const commands = [
 ];
 
 let monitoringInterval = null;
+let statusUpdateInterval = null;
 
 /* ---------- Embed builders ---------- */
 async function createSystemOverviewEmbed() {
@@ -111,6 +112,43 @@ async function createNetworkStatusEmbed() {
     return embed;
 }
 
+/* ---------- Bot status update function ---------- */
+async function updateBotStatus() {
+    try {
+        const cpuInfo = await systemMonitor.getCPUUsage();
+        const memInfo = await systemMonitor.getMemoryUsage();
+        const sysInfo = await systemMonitor.getSystemInfo();
+        const networkStats = await networkMonitor.monitorAllAddresses();
+
+        const onlineServices = networkStats.filter(r => 
+            r.status === 'ONLINE' || 
+            (typeof r.status === 'number' && r.status >= 200 && r.status < 300)
+        ).length;
+
+        // Calculate game start timestamp based on system uptime
+        const uptimeMs = sysInfo.uptime * 60 * 60 * 1000; // Convert hours to milliseconds
+        const gameStartTimestamp = Date.now() - uptimeMs;
+
+        await client.user.setPresence({
+            activities: [{
+                name: `| RAM: ${memInfo.used}GB / ${memInfo.total}GB`,
+                type: ActivityType.Playing,
+                state: `${onlineServices}/${networkStats.length} services online`,
+                timestamps: {
+                    start: gameStartTimestamp
+                },
+                assets: {
+                    large_image: 'monitor_logo',
+                    large_text: 'System Monitor'
+                }
+            }],
+            status: 'online'
+        });
+    } catch (error) {
+        console.error('❌ Error updating bot status:', error);
+    }
+}
+
 /* ---------- Ready & command registration ---------- */
 client.once('ready', async () => {
     console.log(`✅ Bot is ready! Logged in as ${client.user.tag}`);
@@ -126,6 +164,17 @@ client.once('ready', async () => {
         console.log('✅ Successfully reloaded application (/) commands.');
     } catch (err) {
         console.error('❌ Error registering commands:', err);
+    }
+
+    // Initialize Bot Status Updates
+    try {
+        await updateBotStatus();
+        
+        // Update bot status every 30 seconds
+        statusUpdateInterval = setInterval(updateBotStatus, 30000);
+        console.log('✅ Bot status updates initialized');
+    } catch (error) {
+        console.error('❌ Failed to initialize bot status updates:', error);
     }
 });
 
@@ -201,6 +250,21 @@ client.on('interactionCreate', async interaction => {
             await interaction.reply(msg);
         }
     }
+});
+
+/* ---------- Cleanup on exit ---------- */
+process.on('SIGINT', () => {
+    console.log('\n🛑 Shutting down bot...');
+    
+    if (monitoringInterval) {
+        clearInterval(monitoringInterval);
+    }
+    
+    if (statusUpdateInterval) {
+        clearInterval(statusUpdateInterval);
+    }
+    client.destroy();
+    process.exit(0);
 });
 
 /* ---------- Misc ---------- */
