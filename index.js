@@ -57,7 +57,7 @@ async function createSystemOverviewEmbed() {
         .setTitle('System Status')
         .setColor(systemMonitor.getStatusColor(Math.max(cpuInfo.usage, memInfo.usagePercentage)))
         .setTimestamp()
-        .setDescription(`**CPU ${cpuModelShort}:** ${cpuInfo.usage.toFixed(1)}%\n**Memory:** ${memInfo.used}/${memInfo.total}G\n**Network Services:** ${onlineCount}/${networkResults.length} online`);
+        .setDescription(`**CPU: ${cpuModelShort}** ${cpuInfo.usage.toFixed(1)}% Utilized\n**Memory:** ${memInfo.used}GB / ${memInfo.total}GB\n**Network Services:** ${onlineCount}/${networkResults.length} online`);
 
     return embed;
 }
