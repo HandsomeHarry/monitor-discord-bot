@@ -12,20 +12,11 @@ class SystemMonitor {
 
     /**
      * CPU usage (percentage), logical-core count, and model string.
-     * - Native Linux/macOS: use node-os-utils.
-     * - WSL                : query the Windows host via PowerShell.
+     * Uses node-os-utils for actual WSL/Linux CPU usage.
      */
     async getCPUUsage() {
         try {
-            // Detect WSL: kernel release contains “Microsoft”
-            const inWSL = os.platform() === 'linux' &&
-                          os.release().toLowerCase().includes('microsoft');
-
-            if (inWSL) {
-                return this.getWindowsCPUUsageFromWSL();
-            }
-
-            // Non-WSL environments
+            // Use node-os-utils for actual CPU usage (works in WSL for WSL processes)
             const usage = await this.cpu.usage();      // %
             return {
                 usage,

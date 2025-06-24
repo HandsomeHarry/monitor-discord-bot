@@ -44,6 +44,9 @@ const commands = [
 
 let monitoringInterval = null;
 let statusUpdateInterval = null;
+let activityCycleInterval = null;
+let currentSystemData = null;
+let activityIndex = 0;
 
 /* ---------- Embed builders ---------- */
 async function createSystemOverviewEmbed() {
@@ -112,8 +115,8 @@ async function createNetworkStatusEmbed() {
     return embed;
 }
 
-/* ---------- Bot status update function ---------- */
-async function updateBotStatus() {
+/* ---------- Bot status update functions ---------- */
+async function updateSystemData() {
     try {
         const cpuInfo = await systemMonitor.getCPUUsage();
         const memInfo = await systemMonitor.getMemoryUsage();
@@ -125,27 +128,46 @@ async function updateBotStatus() {
             (typeof r.status === 'number' && r.status >= 200 && r.status < 300)
         ).length;
 
+        currentSystemData = {
+            cpu: cpuInfo,
+            memory: memInfo,
+            system: sysInfo,
+            services: { online: onlineServices, total: networkStats.length }
+        };
+    } catch (error) {
+        console.error('❌ Error updating system data:', error);
+    }
+}
+
+async function cycleActivity() {
+    if (!currentSystemData) return;
+
+    try {
+        const activities = [
+            `RAM: ${currentSystemData.memory.used}GB / ${currentSystemData.memory.total}GB`,
+            `CPU: ${currentSystemData.cpu.usage.toFixed(1)}%`,
+            `Uptime: ${formatUptimeHours(currentSystemData.system.uptime)}`,
+            `Services: ${currentSystemData.services.online}/${currentSystemData.services.total} online`
+        ];
+
         // Calculate game start timestamp based on system uptime
-        const uptimeMs = sysInfo.uptime * 60 * 60 * 1000; // Convert hours to milliseconds
+        const uptimeMs = currentSystemData.system.uptime * 60 * 60 * 1000;
         const gameStartTimestamp = Date.now() - uptimeMs;
 
         await client.user.setPresence({
             activities: [{
-                name: `| RAM: ${memInfo.used}GB / ${memInfo.total}GB`,
+                name: activities[activityIndex],
                 type: ActivityType.Playing,
-                state: `${onlineServices}/${networkStats.length} services online`,
                 timestamps: {
                     start: gameStartTimestamp
-                },
-                assets: {
-                    large_image: 'monitor_logo',
-                    large_text: 'System Monitor'
                 }
             }],
             status: 'online'
         });
+
+        activityIndex = (activityIndex + 1) % activities.length;
     } catch (error) {
-        console.error('❌ Error updating bot status:', error);
+        console.error('❌ Error cycling activity:', error);
     }
 }
 
@@ -168,10 +190,15 @@ client.once('ready', async () => {
 
     // Initialize Bot Status Updates
     try {
-        await updateBotStatus();
+        await updateSystemData();
+        await cycleActivity();
         
-        // Update bot status every 30 seconds
-        statusUpdateInterval = setInterval(updateBotStatus, 30000);
+        // Update system data every 20 seconds
+        statusUpdateInterval = setInterval(updateSystemData, 20000);
+        
+        // Cycle activity every 5 seconds
+        activityCycleInterval = setInterval(cycleActivity, 5000);
+        
         console.log('✅ Bot status updates initialized');
     } catch (error) {
         console.error('❌ Failed to initialize bot status updates:', error);
@@ -263,6 +290,11 @@ process.on('SIGINT', () => {
     if (statusUpdateInterval) {
         clearInterval(statusUpdateInterval);
     }
+    
+    if (activityCycleInterval) {
+        clearInterval(activityCycleInterval);
+    }
+    
     client.destroy();
     process.exit(0);
 });
